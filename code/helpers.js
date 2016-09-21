@@ -9,12 +9,12 @@ const {
   Right
 } = require('data.either');
 
-const log = x => {
-  console.log(x);
+const log = _.curry((type, x) => {
+  console[type](x);
   return x;
-};
+});
 
-const fork = _.curry((f, future) => future.fork(log, f));
+const fork = _.curry((error, success, future) => future.fork(error, success));
 
 const listen = _.curry((event, target) => Bacon.fromEvent(target, event));
 

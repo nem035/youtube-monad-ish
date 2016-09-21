@@ -34,7 +34,7 @@ const termStream = compose(map(eventValue), listen('keyup'));
 // create a stream of search term strings from the DOM
 const searchTermStream = compose(map(termStream), getDomIO);
 
-// Youtube API ///////////////////////////////////////////////////////////////////////////////
+// YouTube query builder
 const concatYoutubeUrl = _.concat('https://www.googleapis.com/youtube/v3/search?');
 const termToQuery = (term) => `part=snippet&q=${term}&key=${apiKey}`;
 const termToUrl = compose(concatYoutubeUrl, termToQuery);
@@ -47,7 +47,8 @@ const extractItems = _.prop('items');
 const extractItemProps = _.props(['snippet', 'id']);
 const extract = compose(map(extractItemProps), extractItems);
 
-const getResult = compose(fork(render), map(extract), request);
+const forkOnResult = fork(log('error'), render);
+const getResult = compose(forkOnResult, map(extract), request);
 const getResultOrDoNothing = compose(map(getResult), isNonEmptyString);
 
 // const clickStream = compose(map(_.prop('target')), listen('click'));
