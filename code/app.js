@@ -2,8 +2,7 @@ const _ = require('ramda');
 const $ = require('jquery');
 const {
   map,
-  compose,
-  chain
+  compose
 } = require('pointfree-fantasy');
 const Maybe = require('pointfree-fantasy/instances/maybe');
 const {
@@ -14,7 +13,8 @@ const {
   fork,
   setHtml,
   listen,
-  getData
+  getData,
+  isNonEmptyString
 } = require('./helpers');
 const Player = require('./player');
 const {
@@ -32,32 +32,37 @@ extendFunctionPrototype();
 const getDomIO = $.toIO();
 
 // extract value from a DOM event
-const eventValue = compose(_.prop('value'), _.prop('target'));
+const eventValue = compose(_.trim, _.prop('value'), _.prop('target'));
 
-// listen for keyups
-const valueStream = compose(map(eventValue), listen('keyup'));
+// listen for keyups and extract&trim the event.target.value
+const termStream = compose(map(eventValue), listen('keyup'));
+
+const getInputStream = compose(map(termStream), getDomIO);
+
+// DOM
+const li = (props) => $('<li/>', props);
+
+const render = ({
+  snippet,
+  id
+}) => li({
+  text: snippet.title,
+  'data-youtubeid': id.videoId
+});
+
+const videoEntries = compose(map(render), _.prop('items'));
+
+// Youtube API
 
 // build the url
 const concatYoutubeUrl = _.concat('https://www.googleapis.com/youtube/v3/search?');
-
 const termToQuery = (term) => `part=snippet&q=${term}&key=${apiKey}`;
-
 const termToUrl = compose(concatYoutubeUrl, termToQuery);
-const urlStream = compose(map(termToUrl), valueStream);
-const getInputStream = compose(map(urlStream), getDomIO);
 
-// const render = ({
-//   snippet,
-//   id
-// }) => {
-//   return $('<li/>', {
-//     text: snippet.title,
-//     'data-youtubeid': id.videoId
-//   });
-// };
+const search = compose(map(videoEntries), getJSON, termToUrl);
 
-// const videoEntries = compose(map(render), _.prop('items'));
-// const search = compose(map(videoEntries), getJSON);
+const showResult = compose(fork(setHtml('#results')), search);
+const showResultOrDoNothing = compose(map(showResult), isNonEmptyString);
 
 // const clickStream = compose(map(_.prop('target')), listen('click'));
 
@@ -67,10 +72,7 @@ const getInputStream = compose(map(urlStream), getDomIO);
 
 // IMPURE /////////////////////////////////////////////////////
 
-getInputStream('#search').runIO().onValue(
-  // compose(fork(setHtml('#results')), search)
-  log
-);
+getInputStream('#search').runIO().onValue(showResultOrDoNothing);
 
 // clickStream(document).onValue(
 //   compose(map(compose(setHtml('#player'), Player.create)), youtubeId)
