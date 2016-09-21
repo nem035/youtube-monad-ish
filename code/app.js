@@ -6,9 +6,6 @@ const {
 } = require('pointfree-fantasy');
 const Maybe = require('pointfree-fantasy/instances/maybe');
 const {
-  extendFunctionPrototype
-} = require('./io');
-const {
   log,
   fork,
   setHtml,
@@ -16,6 +13,10 @@ const {
   getData,
   isNonEmptyString
 } = require('./helpers');
+const {
+  getDomIO,
+  render
+} = require('./dom');
 const Player = require('./player');
 const {
   getJSON
@@ -24,45 +25,30 @@ const {
   apiKey
 } = require('./_config');
 
-extendFunctionPrototype();
-
-// PURE /////////////////////////////////////////////////////
-
-// extract DOM IO
-const getDomIO = $.toIO();
-
 // extract value from a DOM event
 const eventValue = compose(_.trim, _.prop('value'), _.prop('target'));
 
 // listen for keyups and extract&trim the event.target.value
 const termStream = compose(map(eventValue), listen('keyup'));
 
-const getInputStream = compose(map(termStream), getDomIO);
+// create a stream of search term strings from the DOM
+const searchTermStream = compose(map(termStream), getDomIO);
 
-// DOM
-const li = (props) => $('<li/>', props);
-
-const render = ({
-  snippet,
-  id
-}) => li({
-  text: snippet.title,
-  'data-youtubeid': id.videoId
-});
-
-const videoEntries = compose(map(render), _.prop('items'));
-
-// Youtube API
-
-// build the url
+// Youtube API ///////////////////////////////////////////////////////////////////////////////
 const concatYoutubeUrl = _.concat('https://www.googleapis.com/youtube/v3/search?');
 const termToQuery = (term) => `part=snippet&q=${term}&key=${apiKey}`;
 const termToUrl = compose(concatYoutubeUrl, termToQuery);
 
-const search = compose(map(videoEntries), getJSON, termToUrl);
+// convert search terms to youtube urls and create futures for their JSON requests
+const request = compose(getJSON, termToUrl);
 
-const showResult = compose(fork(setHtml('#results')), search);
-const showResultOrDoNothing = compose(map(showResult), isNonEmptyString);
+// result parsing
+const extractItems = _.prop('items');
+const extractItemProps = _.props(['snippet', 'id']);
+const extract = compose(map(extractItemProps), extractItems);
+
+const getResult = compose(fork(render), map(extract), request);
+const getResultOrDoNothing = compose(map(getResult), isNonEmptyString);
 
 // const clickStream = compose(map(_.prop('target')), listen('click'));
 
@@ -72,7 +58,7 @@ const showResultOrDoNothing = compose(map(showResult), isNonEmptyString);
 
 // IMPURE /////////////////////////////////////////////////////
 
-getInputStream('#search').runIO().onValue(showResultOrDoNothing);
+searchTermStream('#search').runIO().onValue(getResultOrDoNothing);
 
 // clickStream(document).onValue(
 //   compose(map(compose(setHtml('#player'), Player.create)), youtubeId)

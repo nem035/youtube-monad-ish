@@ -16,8 +16,6 @@ const log = x => {
 
 const fork = _.curry((f, future) => future.fork(log, f));
 
-const setHtml = _.curry((sel, x) => $(sel).html(x));
-
 const listen = _.curry((event, target) => Bacon.fromEvent(target, event));
 
 const getData = _.curry((name, elem) => $(elem).data(name));
@@ -29,7 +27,6 @@ const isNonEmptyString = (x) => isNotEmpty(x) && isString(x) ? Right(x) : Left(n
 module.exports = {
   log,
   fork,
-  setHtml,
   listen,
   getData,
   isNonEmptyString
