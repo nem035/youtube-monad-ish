@@ -25,18 +25,18 @@ const {
   apiKey
 } = require('./_config');
 
-// eventValue:: Object -> String
+// eventValue:: Object(Event) -> String
 // accepts an event object and returns obj.target.value.trim()
 const eventValue = compose(_.trim, _.prop('value'), _.prop('target'));
 
-// termStream:: String -> EventStream
+// termStream:: String -> EventStream(String)
 // accepts a selector string and returns a stream of event values
 const termStream = compose(map(eventValue), listen('keyup'));
 
-// searchTermStream:: String -> EventStream
+// searchTermIOStream:: String -> IO(EventString)
 // accepts a selector string and returns an IO that contains
 // a stream of search term strings from the DOM
-const searchTermStream = compose(map(termStream), getDomIO);
+const searchTermIOStream = compose(map(termStream), getDomIO);
 
 // YouTube query builder
 const concatYoutubeUrl = _.concat('https://www.googleapis.com/youtube/v3/search?');
@@ -45,18 +45,18 @@ const termToQuery = (term) => `part=snippet&q=${term}&key=${apiKey}`;
 // accepts a search term and returns a corresponding URL string
 const termToUrl = compose(concatYoutubeUrl, termToQuery);
 
-// request:: String -> Future
+// request:: String -> Future(Object)
 // accepts a search term string and returns a future for its JSON request)
 const request = compose(getJSON, termToUrl);
 
 // result parsing
 const extractItems = _.prop('items');
 const extractItemProps = _.props(['snippet', 'id']);
-// extract:: POJO -> [Object]
-// accepts a POJO and returns an array of urls and ids for youtube videos
+// extract:: Object -> [Object]
+// accepts a Object and returns an extracted array of urls and ids for youtube videos
 const extract = compose(map(extractItemProps), extractItems);
 
-// forkOnResult:: Future -> Undefined
+// forkOnResult:: Future([Object]) -> Undefined
 // accepts a future that will either resolve with youtube video
 // objects and render them, or reject and log the error
 const forkOnResult = fork(log('error'), render);
@@ -74,7 +74,7 @@ const getResultOrDoNothing = compose(map(getResult), isNonEmptyString);
 
 // IMPURE /////////////////////////////////////////////////////
 
-searchTermStream('#search').runIO().onValue(getResultOrDoNothing);
+searchTermIOStream('#search').runIO().onValue(getResultOrDoNothing);
 
 // clickStream(document).onValue(
 //   compose(map(compose(setHtml('#player'), Player.create)), youtubeId)
