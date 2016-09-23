@@ -43,7 +43,7 @@ const extendFunctionPrototype = function() {
     const self = this;
     return function(...args) {
       return IO(function() {
-        return self.apply(this, args)
+        return self.apply(this, args);
       });
     };
   };
