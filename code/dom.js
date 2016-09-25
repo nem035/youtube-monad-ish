@@ -1,6 +1,7 @@
 const _ = require('ramda');
 const {
-  IO
+  IO,
+  Tuple
 } = require('ramda-fantasy');
 const {
   breakpoint,
@@ -61,21 +62,50 @@ const createListItem = ({ title, description, thumbnails, videoId }) => {
 };
 
 // ::
-const runner = _.reduce(
-  (prev, curr) => prev === null ? curr.runIO().runIO() : curr(prev),
+const resultsRunner = _.reduce(
+  (prev, curr) => prev === null ?
+    curr.runIO().runIO() :
+    curr(prev),
   null
 );
 
+const playerRunner = (tuple) => {
+  const playerDOM = tuple[0].runIO().runIO();
+  const res = tuple[1];
+  res.value(playerDOM);
+};
+
 // :: Array(Object(String(title), String(videoId))) -> Undefined
-const render = _.compose(
-  runner,
+const renderResults = _.compose(
+  resultsRunner,
   _.prepend(getClearResultsContainer('#results')),
   _.map(appendChild),
   _.map(createListItem)
 );
 
+const setPlayerAttributes = _.compose(
+  setAttribute('width', '320'),
+  setAttribute('height', '240'),
+  setAttribute('frameborder', '0'),
+  setAttribute('allowfullscreen', 'true')
+);
+
+const createPlayer = (yid) => {
+  const player = createElement('iframe');
+  setPlayerAttributes(player);
+  setAttribute('src', `//www.youtube.com/embed/${yid}`, player);
+  return player;
+};
+
+const renderPlayer = _.compose(
+  playerRunner,
+  Tuple(getClearResultsContainer('#player')),
+  _.map(appendChild),
+  _.map(createPlayer)
+);
 
 module.exports = {
   domSelectorIO,
-  render
+  renderResults,
+  renderPlayer
 };

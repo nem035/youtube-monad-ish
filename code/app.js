@@ -12,9 +12,9 @@ const {
 } = require('./helpers');
 const {
   domSelectorIO,
-  render
+  renderResults,
+  renderPlayer
 } = require('./dom');
-const Player = require('./player');
 const {
   getJSON
 } = require('./http');
@@ -65,25 +65,43 @@ const getResult = _.compose(_.map(extract), request);
 
 // :: Future(Maybe(Array(Array)) -> Undefined
 // accepts a future that will either resolve with youtube video
-// objects and render them, or reject and log the error
-const forkOnResult = fork(log('error'), render);
+// objects and renderResults them, or reject and log the error
+const forkOnResult = fork(log('error'), renderResults);
 
-const showResultsOrDoNothing = _.compose(
+const showResults = _.compose(
   _.map(forkOnResult),
   _.map(getResult),
   isNonEmptyString
 );
 
-// const clickStream = _.compose(_.map(_.prop('target')), listen('click'));
+// :: String -> EventStream(String)
+// accepts a selector string and returns a stream of event values
+const clickStream = _.compose(_.map(_.prop('target')), listen('click'));
 
-// const idInUrl = _.compose(_.tail, _.split('/'));
+// :: String -> IO(EventString)
+// accepts a selector string and returns an IO that contains
+// a stream of search term strings from the DOM
+const resultsListClick = _.compose(_.map(clickStream), domSelectorIO);
+const youtubeId = _.compose(
+  Maybe,
+  _.prop('youtubeid'),
+  _.prop('dataset')
+);
 
-// const youtubeId = _.compose(_.map(idInUrl), Maybe, getData('youtubeid'));
+const findListItem = (target) => {
+  if (target.id === 'results') return Maybe(null);
+  if (target.nodeName !== 'LI') return findListItem(target.parentElement);
+  return target;
+}
+
+const showPlayerOrDoNothing = _.compose(
+  renderPlayer,
+  youtubeId,
+  findListItem
+);
 
 // IMPURE /////////////////////////////////////////////////////
 
-searchTermIOStream('#search').runIO().onValue(showResultsOrDoNothing);
+searchTermIOStream('#search').runIO().onValue(showResults);
 
-// clickStream(document).onValue(
-//   _.compose(_.map(_.compose(setHtml('#player'), Player.create)), youtubeId)
-// );
+resultsListClick('#results').runIO().onValue(showPlayerOrDoNothing);

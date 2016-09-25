@@ -23,7 +23,6 @@ iframe {
 
 .card {
 	height: 100%;
-	padding: 5px;
   background: #fff;
   border: 0;
   box-shadow: 0 1px 2px rgba(0,0,0,.1);
@@ -36,8 +35,8 @@ iframe {
 
 .input-wrapper::after {
 	content: '\1F50D';
-	right: 2px;
-	top: 0;
+	left: 6px;
+	top: 4px;
 	position: absolute;
 }
 
@@ -48,9 +47,9 @@ input {
 	transition: border-color .2s ease-in;
   font-size: 16px;
   left: 0;
-  margin: 0;
-  padding: 2px 6px;
-  width: 100%;
+  margin: 5px;
+  padding: 2px 2px 2px 14px;
+  width: calc(100% - 10px);
 }
 
 input:hover {
