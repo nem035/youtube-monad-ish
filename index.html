@@ -1,20 +1,32 @@
 <html>
 
 <head>
-  <style type="text/css">
-    #results,
-    input {
-      float: left;
-      clear: left;
-      margin-right: 2em;
-    }
-  </style>
+  <link href="./style/style.css" rel="stylesheet">
 </head>
 
 <body>
-  <input id="search" type="text" />
-  <ul id="results"></ul>
-  <div id="player"></div>
+  <div class="column left">
+    <div class="card">
+      <div class="input-wrapper">
+        <input id="search" type="search" autocomplete="off"/>
+      </div>
+      <ul id="results">
+        <!-- <li class="collection-item avatar">
+          <img src="images/yuna.jpg" alt="" class="circle">
+          <span class="title">Title</span>
+          <p>First Line <br>
+             Second Line
+          </p>
+          <a href="#!" class="secondary-content"><i class="material-icons">grade</i></a>
+        </li> -->
+      </ul>
+    </div>
+  </div>
+  <div class="column right">
+    <div id="player" class="card">
+      <!-- <iframe src="//www.youtube.com/embed/Q8TXgCzxEnw?rel=0" frameborder="0" allowfullscreen></iframe> -->
+    </div>
+  </div>
   <script src="dist/bundle.js"></script>
 </body>
 

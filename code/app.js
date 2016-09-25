@@ -1,20 +1,17 @@
 const _ = require('ramda');
-const $ = require('jquery');
 const {
-  map,
-  compose
-} = require('pointfree-fantasy');
-const Maybe = require('pointfree-fantasy/instances/maybe');
+  Maybe,
+  Identity
+} = require('ramda-fantasy');
 const {
+  breakpoint,
   log,
   fork,
-  setHtml,
   listen,
-  getData,
   isNonEmptyString
 } = require('./helpers');
 const {
-  getDomIO,
+  domSelectorIO,
   render
 } = require('./dom');
 const Player = require('./player');
@@ -25,57 +22,68 @@ const {
   apiKey
 } = require('./_config');
 
-// eventValue:: Object(Event) -> String
+// :: Object(Event) -> String
 // accepts an event object and returns obj.target.value.trim()
-const eventValue = compose(_.trim, _.prop('value'), _.prop('target'));
+const eventValue = _.compose(_.trim, _.prop('value'), _.prop('target'));
 
-// termStream:: String -> EventStream(String)
+// :: String -> EventStream(String)
 // accepts a selector string and returns a stream of event values
-const termStream = compose(map(eventValue), listen('keyup'));
+const termStream = _.compose(_.map(eventValue), listen('keyup'));
 
-// searchTermIOStream:: String -> IO(EventString)
+// :: String -> IO(EventString)
 // accepts a selector string and returns an IO that contains
 // a stream of search term strings from the DOM
-const searchTermIOStream = compose(map(termStream), getDomIO);
+const searchTermIOStream = _.compose(_.map(termStream), domSelectorIO);
 
-// YouTube query builder
+// :: String -> String
 const concatYoutubeUrl = _.concat('https://www.googleapis.com/youtube/v3/search?');
+
+// :: String -> String
 const termToQuery = (term) => `part=snippet&q=${term}&key=${apiKey}`;
-// termToUrl:: String -> String
+
+// :: String -> String
 // accepts a search term and returns a corresponding URL string
-const termToUrl = compose(concatYoutubeUrl, termToQuery);
+const termToUrl = _.compose(concatYoutubeUrl, termToQuery);
 
-// request:: String -> Future(Object)
+// :: String -> Future(Object)
 // accepts a search term string and returns a future for its JSON request)
-const request = compose(getJSON, termToUrl);
+const request = _.compose(getJSON, termToUrl);
 
-// result parsing
-const extractItems = _.prop('items');
-const extractItemProps = _.props(['snippet', 'id']);
-// extract:: Object -> [Object]
+
+// :: Object -> Array(Object(title, videoId))
 // accepts a Object and returns an extracted array of urls and ids for youtube videos
-const extract = compose(map(extractItemProps), extractItems);
+const extract = _.compose(
+  _.map(_.apply(_.merge)),
+  _.map(_.props(['snippet', 'id'])),
+  _.project(['snippet', 'id']),
+  _.prop('items')
+);
 
-// forkOnResult:: Future([Object]) -> Undefined
+// :: String -> Future(Array(Array))
+// accepts a search term string and returns a Future for the YouTube request
+const getResult = _.compose(_.map(extract), request);
+
+// :: Future(Maybe(Array(Array)) -> Undefined
 // accepts a future that will either resolve with youtube video
 // objects and render them, or reject and log the error
 const forkOnResult = fork(log('error'), render);
 
-// getResult:: String -> Future([Object])
-// accepts a search term string and returns a Future for the YouTube request
-const getResult = compose(forkOnResult, map(extract), request);
-const getResultOrDoNothing = compose(map(getResult), isNonEmptyString);
+const showResultsOrDoNothing = _.compose(
+  _.map(forkOnResult),
+  _.map(getResult),
+  isNonEmptyString
+);
 
-// const clickStream = compose(map(_.prop('target')), listen('click'));
+// const clickStream = _.compose(_.map(_.prop('target')), listen('click'));
 
-// const idInUrl = compose(_.tail, _.split('/'));
+// const idInUrl = _.compose(_.tail, _.split('/'));
 
-// const youtubeId = compose(map(idInUrl), Maybe, getData('youtubeid'));
+// const youtubeId = _.compose(_.map(idInUrl), Maybe, getData('youtubeid'));
 
 // IMPURE /////////////////////////////////////////////////////
 
-searchTermIOStream('#search').runIO().onValue(getResultOrDoNothing);
+searchTermIOStream('#search').runIO().onValue(showResultsOrDoNothing);
 
 // clickStream(document).onValue(
-//   compose(map(compose(setHtml('#player'), Player.create)), youtubeId)
+//   _.compose(_.map(_.compose(setHtml('#player'), Player.create)), youtubeId)
 // );

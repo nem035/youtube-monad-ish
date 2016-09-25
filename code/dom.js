@@ -1,37 +1,81 @@
 const _ = require('ramda');
-const $ = require('jquery');
 const {
-  map,
-  compose
-} = require('pointfree-fantasy');
+  IO
+} = require('ramda-fantasy');
 const {
-  extendFunctionPrototype
-} = require('./io');
+  breakpoint,
+  log,
+  runIO
+} = require('./helpers');
 
-extendFunctionPrototype();
+// :: String -> IO(DomElement)
+const domSelectorIO = (sel) => IO(() => document.querySelector(sel));
 
-// getDomIO:: Any -> IO(Any) (Wraps the $ into an IO)
-const getDomIO = $.toIO();
+// :: DomElement -> IO(DomElement)
+const removeAllChildren = (elem) => IO(() => {
+  while (elem.firstChild) {
+    elem.removeChild(elem.firstChild);
+  }
+  return elem;
+});
 
-const setHtml = _.curry((sel, x) => $(sel).html(x));
+// :: String -> IO //TODO:?
+const getClearResultsContainer = _.compose(
+  _.map(removeAllChildren),
+  domSelectorIO
+);
 
-const li = (props) => $('<li/>', props);
+// :: (DomElement, DomElement) -> DomElement
+const appendChild = _.curry((child, elem) => {
+  elem.appendChild(child);
+  return elem;
+});
 
-const buildListItem = ([snippet, id]) => {
-  return li({
-    text: snippet.title,
-    'data-youtubeid': id.videoId
-  });
+// :: (DomElement, String, Any) -> Undefined
+const setAttribute = _.curry((name, value, elem) => {
+  elem.setAttribute(name, value);
+  return elem;
+});
+
+// :: String -> DomElement
+const createElement = (type) => document.createElement(type);
+
+const createListItem = ({ title, description, thumbnails, videoId }) => {
+  const li = createElement('li');
+  setAttribute('data-youtubeid', videoId, li);
+  setAttribute('title', description, li);
+
+  const { width, height, url } = thumbnails.default;
+  li.innerHTML = `
+    <div class="avatar">
+      <img height=${height} width=${width} src=${url} alt="avatar">
+    </div>
+    <div class="meta">
+      <span class="title">${title}</span>
+      <p class="description">
+        ${description}
+      </p>
+    </div>
+  `;
+  return li;
 };
 
-const renderIntoResultsList = setHtml('#results');
+// ::
+const runner = _.reduce(
+  (prev, curr) => prev === null ? curr.runIO().runIO() : curr(prev),
+  null
+);
 
-// render:: Future([Object]) -> Undefined
-// accepts a Future and renders a <ul> containing an <li>
-// for each Object in the [] within the Future
-const render = compose(renderIntoResultsList, map(buildListItem));
+// :: Array(Object(String(title), String(videoId))) -> Undefined
+const render = _.compose(
+  runner,
+  _.prepend(getClearResultsContainer('#results')),
+  _.map(appendChild),
+  _.map(createListItem)
+);
+
 
 module.exports = {
-  getDomIO,
+  domSelectorIO,
   render
-}
+};
