@@ -13,7 +13,10 @@ const {
 const {
   domSelectorIO,
   renderResults,
-  renderPlayer
+  renderPlayer,
+  activateListItem,
+  findListItem,
+  deactivateAllListItems
 } = require('./dom');
 const {
   getJSON
@@ -23,16 +26,12 @@ const {
 } = require('./_config');
 
 // :: Object(Event) -> String
-// accepts an event object and returns obj.target.value.trim()
 const eventValue = _.compose(_.trim, _.prop('value'), _.prop('target'));
 
 // :: String -> EventStream(String)
-// accepts a selector string and returns a stream of event values
 const termStream = _.compose(_.map(eventValue), listen('keyup'));
 
 // :: String -> IO(EventString)
-// accepts a selector string and returns an IO that contains
-// a stream of search term strings from the DOM
 const searchTermIOStream = _.compose(_.map(termStream), domSelectorIO);
 
 // :: String -> String
@@ -42,16 +41,12 @@ const concatYoutubeUrl = _.concat('https://www.googleapis.com/youtube/v3/search?
 const termToQuery = (term) => `part=snippet&q=${term}&key=${apiKey}`;
 
 // :: String -> String
-// accepts a search term and returns a corresponding URL string
 const termToUrl = _.compose(concatYoutubeUrl, termToQuery);
 
 // :: String -> Future(Object)
-// accepts a search term string and returns a future for its JSON request)
 const request = _.compose(getJSON, termToUrl);
 
-
 // :: Object -> Array(Object(title, videoId))
-// accepts a Object and returns an extracted array of urls and ids for youtube videos
 const extract = _.compose(
   _.map(_.apply(_.merge)),
   _.map(_.props(['snippet', 'id'])),
@@ -82,21 +77,17 @@ const clickStream = _.compose(_.map(_.prop('target')), listen('click'));
 // accepts a selector string and returns an IO that contains
 // a stream of search term strings from the DOM
 const resultsListClick = _.compose(_.map(clickStream), domSelectorIO);
-const youtubeId = _.compose(
+const extractYoutubeId = _.compose(
   Maybe,
   _.prop('youtubeid'),
   _.prop('dataset')
 );
 
-const findListItem = (target) => {
-  if (target.id === 'results') return Maybe(null);
-  if (target.nodeName !== 'LI') return findListItem(target.parentElement);
-  return target;
-}
-
-const showPlayerOrDoNothing = _.compose(
+const showPlayer = _.compose(
   renderPlayer,
-  youtubeId,
+  extractYoutubeId,
+  activateListItem,
+  deactivateAllListItems,
   findListItem
 );
 
@@ -104,4 +95,4 @@ const showPlayerOrDoNothing = _.compose(
 
 searchTermIOStream('#search').runIO().onValue(showResults);
 
-resultsListClick('#results').runIO().onValue(showPlayerOrDoNothing);
+resultsListClick('#results').runIO().onValue(showPlayer);

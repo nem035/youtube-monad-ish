@@ -3,6 +3,7 @@ const {
   Bacon
 } = require('baconjs');
 const {
+  IO,
   Maybe
 } = require('ramda-fantasy');
 
@@ -28,6 +29,8 @@ const isString = (x) => typeof(x) === 'string';
 const isNonEmptyString = (x) => (isNotEmpty(x) && isString(x)) ? Maybe(x) : Maybe(null);
 
 const runIO = (io) => io.runIO();
+const wrapInIO = (fn) => (x) => IO(() => fn(x));
+const chainIO = _.curry((io1, io2) => io1.chain(io2));
 
 module.exports = {
   breakpoint,
@@ -35,5 +38,7 @@ module.exports = {
   fork,
   listen,
   isNonEmptyString,
-  runIO
+  runIO,
+  wrapInIO,
+  chainIO
 };

@@ -1,12 +1,15 @@
 const _ = require('ramda');
 const {
   IO,
-  Tuple
+  Tuple,
+  Maybe
 } = require('ramda-fantasy');
 const {
   breakpoint,
   log,
-  runIO
+  runIO,
+  wrapInIO,
+  chainIO
 } = require('./helpers');
 
 // :: String -> IO(DomElement)
@@ -38,6 +41,18 @@ const setAttribute = _.curry((name, value, elem) => {
   return elem;
 });
 
+// :: (DomElement, String) -> DomElement
+const addClass = _.curry((cls, elem) => {
+  elem.className += cls
+  return elem;
+});
+
+// :: (DomElement, String) -> DomElement
+const removeClass = _.curry((cls, elem) => {
+  elem.className = elem.className.replace(cls, '');
+  return elem;
+});
+
 // :: String -> DomElement
 const createElement = (type) => document.createElement(type);
 
@@ -61,13 +76,23 @@ const createListItem = ({ title, description, thumbnails, videoId }) => {
   return li;
 };
 
-// ::
-const resultsRunner = _.reduce(
-  (prev, curr) => prev === null ?
-    curr.runIO().runIO() :
-    curr(prev),
-  null
+const findListItem = (target) => {
+  if (target.id === 'results') return Maybe(null);
+  if (target.nodeName !== 'LI') return findListItem(target.parentElement);
+  return target;
+}
+
+const activateListItem = addClass('active');
+
+const deactivateItems = _.compose(
+  _.map(removeClass('active')),
+  (x) => document.querySelectorAll(x)
 );
+
+const deactivateAllListItems = (li) => {
+  deactivateItems('li');
+  return li;
+};
 
 const playerRunner = (tuple) => {
   const playerDOM = tuple[0].runIO().runIO();
@@ -75,12 +100,20 @@ const playerRunner = (tuple) => {
   res.value(playerDOM);
 };
 
-// :: Array(Object(String(title), String(videoId))) -> Undefined
+// :: Object(YoutubeData) -> () => IO((elem) => appendChild(DomElement(li), elem)
+const listItemCreateAndAppendIO = _.compose(
+  wrapInIO,
+  appendChild,
+  createListItem
+);
+
+// :: Array(Object(YoutubeData)) -> Undefined
 const renderResults = _.compose(
-  resultsRunner,
-  _.prepend(getClearResultsContainer('#results')),
-  _.map(appendChild),
-  _.map(createListItem)
+  runIO,
+  // an IO chain that appends elements to the body
+  _.reduce(chainIO, domSelectorIO('#results')),
+  // Array(() => IO((e) => appendChild(DomElement(li), e))
+  _.map(listItemCreateAndAppendIO)
 );
 
 const setPlayerAttributes = _.compose(
@@ -107,5 +140,8 @@ const renderPlayer = _.compose(
 module.exports = {
   domSelectorIO,
   renderResults,
-  renderPlayer
+  renderPlayer,
+  activateListItem,
+  findListItem,
+  deactivateAllListItems
 };

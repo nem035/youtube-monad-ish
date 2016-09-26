@@ -76,10 +76,14 @@ li {
 	padding: 5px;
 }
 
-li:hover {
-	background: #444;
-	color: #fff;
+li:hover,
+li.active {
 	cursor: pointer;
+	color: #fff;
+}
+
+li:not(.active):hover {
+	background: #444;
 }
 
 .active {
