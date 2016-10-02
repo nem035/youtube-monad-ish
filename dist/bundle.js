@@ -383,7 +383,7 @@ module.exports = {
 },{"ramda-fantasy":7}],5:[function(require,module,exports){
 const app = require('./app');
 
-fetch('https://youtube-shuffle-ejpiaj.herokuapp.com')
+fetch('https://youtube-shuffle-ejpiaj.herokuapp.com/kljuc-na-ejpiaj')
   .then((res) => res.json())
   .then(({ apiKey }) => {
     app.start(apiKey);
