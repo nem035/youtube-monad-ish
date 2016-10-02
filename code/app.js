@@ -19,9 +19,8 @@ const {
 const {
   getJSON
 } = require('./http');
-const {
-  apiKey
-} = require('./_config');
+
+let apiKey;
 
 // :: Object(Event) -> String
 const eventValue = R.compose(R.trim, R.path(['target', 'value']));
@@ -92,6 +91,14 @@ const showPlayer = R.compose(
 
 // IMPURE /////////////////////////////////////////////////////
 
-searchTermIOStream('#search').runIO().onValue(showResults);
+const start = (key) => {
 
-resultsListClick('#results').runIO().onValue(showPlayer);
+  apiKey = key;
+
+  searchTermIOStream('#search').runIO().onValue(showResults);
+  resultsListClick('#results').runIO().onValue(showPlayer);
+};
+
+module.exports = {
+  start
+};
