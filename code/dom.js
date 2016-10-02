@@ -1,4 +1,4 @@
-const _ = require('ramda');
+const R = require('ramda');
 const {
   IO,
   Tuple,
@@ -6,63 +6,98 @@ const {
 } = require('ramda-fantasy');
 const {
   breakpoint,
+  breakpointIO,
   log,
   runIO,
-  wrapInIO,
   chainIO
 } = require('./helpers');
 
 // :: String -> IO(DomElement)
-const domSelectorIO = (sel) => IO(() => document.querySelector(sel));
+const selectIO = (sel) => IO(() => document.querySelector(sel));
 
-// :: DomElement -> IO(DomElement)
-const removeAllChildren = (elem) => IO(() => {
-  while (elem.firstChild) {
-    elem.removeChild(elem.firstChild);
+// :: String -> IO(DomElement)
+const createIO = (type) => IO(() => document.createElement(type));
+
+// :: (Function, DomElement) -> IO()
+const elementIO = R.curry((fn, elem) => IO(
+  () => {
+    fn(elem);
+    return elem;
   }
-  return elem;
-});
+));
 
-// :: String -> IO //TODO:?
-const getClearResultsContainer = _.compose(
-  _.map(removeAllChildren),
-  domSelectorIO
+// :: String -> IO(DomElement)
+const setHtmlIO = (html) => elementIO(
+  (elem) => elem.innerHTML = html
 );
 
-// :: (DomElement, DomElement) -> DomElement
-const appendChild = _.curry((child, elem) => {
-  elem.appendChild(child);
-  return elem;
+// :: (String, String) -> IO(DomElement)
+const setAttributeIO = R.curry((name, value) => {
+  debugger;
+  return elementIO(
+    (elem) => elem.setAttribute(name, value)
+  );
 });
 
-// :: (DomElement, String, Any) -> Undefined
-const setAttribute = _.curry((name, value, elem) => {
-  elem.setAttribute(name, value);
-  return elem;
+// :: Array([{ name, value }, ...]) -> Array(Function -> IO)
+const setAttributesIOs = R.compose(
+  R.map(R.apply(setAttributeIO)),
+  R.toPairs
+);
+
+// :: String -> IO(DomElement)
+const addClassIO = (cls) => elementIO(
+  (elem) => elem.className += cls
+);
+
+// :: String -> IO(DomElement)
+const removeClassIO = (cls) => elementIO(
+  (elem) => elem.className = elem.className.replace(cls, '')
+);
+
+// :: DomElement -> IO(DomElement)
+const appendChildIO = (child) => elementIO(
+  (elem) => elem.appendChild(child)
+);
+
+// :: DomElement -> IO(DomElement)
+const removeAllChildrenIO = elementIO((elem) => {
+  (elem) => {
+    while (elem.firstChild) {
+      elem.removeChild(elem.firstChild);
+    }
+  }
 });
 
-// :: (DomElement, String) -> DomElement
-const addClass = _.curry((cls, elem) => {
-  elem.className += cls
-  return elem;
-});
+// :: String -> IO(DomElement)
+const selectAndClearIO = (sel) => chainIO(
+  selectIO(sel),
+  [removeAllChildrenIO]
+);
 
-// :: (DomElement, String) -> DomElement
-const removeClass = _.curry((cls, elem) => {
-  elem.className = elem.className.replace(cls, '');
-  return elem;
-});
+// :: (String, Object) -> IO(DomElement)
+const createFromDataIO = R.curry(
+  (type, data) => chainIO(
+    createIO(type),
+    R.concat([
+      setHtmlIO(data.html),
+      addClassIO(data.cls)
+    ], setAttributesIOs(data.attributes))
+  )
+);
 
-// :: String -> DomElement
-const createElement = (type) => document.createElement(type);
+// :: String -> Function -> IO
+const createAppendableFromDataIO = (type) => R.compose(
+  R.map(appendChildIO),
+  createFromDataIO(type)
+);
 
-const createListItem = ({ title, description, thumbnails, videoId }) => {
-  const li = createElement('li');
-  setAttribute('data-youtubeid', videoId, li);
-  setAttribute('title', description, li);
-
+// :: Object -> Object
+const buildDataObject = (youtubeObject) => {
+  const { title, description, thumbnails, videoId } = youtubeObject;
   const { width, height, url } = thumbnails.default;
-  li.innerHTML = `
+
+  const html = `
     <div class="avatar">
       <img height=${height} width=${width} src=${url} alt="avatar">
     </div>
@@ -73,8 +108,43 @@ const createListItem = ({ title, description, thumbnails, videoId }) => {
       </p>
     </div>
   `;
-  return li;
+
+  const attributes = {
+    'data-youtubeid': videoId,
+    title: description
+  };
+
+  const cls = '';
+
+  return {
+    html,
+    attributes,
+    cls
+  };
 };
+
+// :: Object -> Function -> IO
+const createAppendableListItemFromDataIO = R.compose(
+  createAppendableFromDataIO('li'),
+  buildDataObject
+);
+
+// :: Array -> IO(DomElement)
+const listItemsIO = (items) => chainIO(
+  IO.of(items),
+  [
+    R.traverse(
+      IO.of,
+      createAppendableListItemFromDataIO
+    ),
+    chainIO(selectAndClearIO('#results'))
+  ]
+);
+
+const renderResults = R.compose(
+  runIO,
+  listItemsIO
+);
 
 const findListItem = (target) => {
   if (target.id === 'results') return Maybe(null);
@@ -82,10 +152,10 @@ const findListItem = (target) => {
   return target;
 }
 
-const activateListItem = addClass('active');
+const activateListItem = addClassIO('active');
 
-const deactivateItems = _.compose(
-  _.map(removeClass('active')),
+const deactivateItems = R.compose(
+  R.map(removeClassIO('active')),
   (x) => document.querySelectorAll(x)
 );
 
@@ -95,50 +165,34 @@ const deactivateAllListItems = (li) => {
 };
 
 const playerRunner = (tuple) => {
-  const playerDOM = tuple[0].runIO().runIO();
-  const res = tuple[1];
-  res.value(playerDOM);
+  // const playerDOM = tuple[0].runIO().runIO();
+  // const res = tuple[1];
+  // res.value(playerDOM);
 };
 
-// :: Object(YoutubeData) -> () => IO((elem) => appendChild(DomElement(li), elem)
-const listItemCreateAndAppendIO = _.compose(
-  wrapInIO,
-  appendChild,
-  createListItem
-);
-
-// :: Array(Object(YoutubeData)) -> Undefined
-const renderResults = _.compose(
-  runIO,
-  // an IO chain that appends elements to the body
-  _.reduce(chainIO, domSelectorIO('#results')),
-  // Array(() => IO((e) => appendChild(DomElement(li), e))
-  _.map(listItemCreateAndAppendIO)
-);
-
-const setPlayerAttributes = _.compose(
-  setAttribute('width', '320'),
-  setAttribute('height', '240'),
-  setAttribute('frameborder', '0'),
-  setAttribute('allowfullscreen', 'true')
+const setPlayerAttributesIO = chainIO(
+  // setAttributeIO('width', '320'),
+  // setAttributeIO('height', '240'),
+  // setAttributeIO('frameborder', '0'),
+  // setAttributeIO('allowfullscreen', 'true')
 );
 
 const createPlayer = (yid) => {
-  const player = createElement('iframe');
-  setPlayerAttributes(player);
-  setAttribute('src', `//www.youtube.com/embed/${yid}`, player);
-  return player;
+  // const player = createElement('iframe');
+  // setPlayerAttributesIO(player);
+  // setAttributeIO('src', `//www.youtube.com/embed/${yid}`, player);
+  // return player;
 };
 
-const renderPlayer = _.compose(
-  playerRunner,
-  Tuple(getClearResultsContainer('#player')),
-  _.map(appendChild),
-  _.map(createPlayer)
+const renderPlayer = R.compose(
+  playerRunner
+  // Tuple(getClearResultsContainer('#player')),
+  // R.map(appendChildIO),
+  // R.map(createPlayer)
 );
 
 module.exports = {
-  domSelectorIO,
+  selectIO,
   renderResults,
   renderPlayer,
   activateListItem,
