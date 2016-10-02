@@ -8,15 +8,13 @@ const {
   log,
   fork,
   listen,
-  isNonEmptyString
+  isNonEmptyString,
+  chainIO
 } = require('./helpers');
 const {
   selectIO,
   renderResults,
-  renderPlayer,
-  activateListItem,
-  findListItem,
-  deactivateAllListItems
+  renderPlayer
 } = require('./dom');
 const {
   getJSON
@@ -26,7 +24,7 @@ const {
 } = require('./_config');
 
 // :: Object(Event) -> String
-const eventValue = R.compose(R.trim, R.prop('value'), R.prop('target'));
+const eventValue = R.compose(R.trim, R.path(['target', 'value']));
 
 // :: String -> EventStream(String)
 const termStream = R.compose(R.map(eventValue), listen('keyup'));
@@ -63,12 +61,6 @@ const getResult = R.compose(R.map(extract), request);
 // objects and renderResults them, or reject and log the error
 const forkOnResult = fork(log('error'), renderResults);
 
-const showResults = R.compose(
-  R.map(forkOnResult),
-  R.map(getResult),
-  isNonEmptyString
-);
-
 // :: String -> EventStream(String)
 // accepts a selector string and returns a stream of event values
 const clickStream = R.compose(R.map(R.prop('target')), listen('click'));
@@ -77,17 +69,24 @@ const clickStream = R.compose(R.map(R.prop('target')), listen('click'));
 // accepts a selector string and returns an IO that contains
 // a stream of search term strings from the DOM
 const resultsListClick = R.compose(R.map(clickStream), selectIO);
-const extractYoutubeId = R.compose(
-  Maybe,
-  R.prop('youtubeid'),
-  R.prop('dataset')
+
+// :: DomElement -> DomElement
+const findListItem = (target) => {
+  while (target.parentElement && target.nodeName !== 'LI') {
+    target = target.parentElement;
+  }
+  return Maybe(target);
+}
+
+const showResults = R.compose(
+  R.map(forkOnResult),
+  R.map(getResult),
+  isNonEmptyString
 );
 
 const showPlayer = R.compose(
   renderPlayer,
-  extractYoutubeId,
-  activateListItem,
-  deactivateAllListItems,
+  R.map(R.prop('id')),
   findListItem
 );
 

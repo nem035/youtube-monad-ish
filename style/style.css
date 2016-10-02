@@ -48,7 +48,7 @@ input {
   font-size: 16px;
   left: 0;
   margin: 5px;
-  padding: 2px 2px 2px 14px;
+  padding: 2px 2px 2px 24px;
   width: calc(100% - 10px);
 }
 
@@ -107,4 +107,8 @@ li:not(.active):hover {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+#player {
+	height: 100%;
 }
