@@ -271,7 +271,7 @@ const deactivateAllListItemsIO = () => chainIO(
 
 // :: DomElement -> IO
 const activateListItemIO = (yid) => () => chainIO(
-  selectIO(`#${yid}`),
+  selectIO(`[id="${yid}"]`),
   [addClassIO('active')]
 );
 
