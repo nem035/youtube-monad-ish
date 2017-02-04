@@ -2,7 +2,7 @@
 
 Simple Youtube Player app built using [fantasy-land](https://github.com/fantasyland/fantasy-land) functional principles.
 
-[Live Page](https://nem035.github.io/youtube-shuffle)
+[Live Page](https://nem035.github.io/youtube-monad-ish)
 
 ## Libraries
 
