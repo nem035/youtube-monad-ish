@@ -1,4 +1,4 @@
-# Youtube Shuffle
+# Youtube Monad, ish
 
 Simple Youtube Player app built using [fantasy-land](https://github.com/fantasyland/fantasy-land) functional principles.
 
